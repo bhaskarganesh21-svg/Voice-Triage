@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>VoiceTriage — eSanjeevani AI Triage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+<!-- ══ TOP NAV ════════════════════════════════════════════════════════════ -->
+<nav class="topnav">
+  <div class="nav-brand">
+    <span class="brand-pulse"></span>
+    <span class="brand-icon">🩺</span>
+    <div>
+      <div class="brand-name">VoiceTriage</div>
+      <div class="brand-sub">eSanjeevani · AI Pre-Call Triage</div>
+    </div>
+  </div>
+  <div class="nav-actions">
+    <div class="status-pill" id="statusPill">
+      <span class="dot dot-green"></span>
+      <span id="statusText">Connecting…</span>
+    </div>
+    <button class="nav-btn" onclick="openStats()">📊 Stats</button>
+    <button class="nav-btn" onclick="openHistory()">🕒 History</button>
+    <button class="nav-btn nav-btn-primary" onclick="openHelp()">❓ Help</button>
+  </div>
+</nav>
+
+<!-- ══ MAIN GRID ══════════════════════════════════════════════════════════ -->
+<div class="page-grid">
+
+  <!-- ─── LEFT: Input Panel ─────────────────────────────────────────────── -->
+  <aside class="card input-card">
+    <div class="card-header">
+      <span class="card-title">Patient Voice Input</span>
+      <span class="card-badge">Direct Speech</span>
+    </div>
+
+    <!-- Input Mode Switcher -->
+    <div class="mode-switcher">
+      <button class="mode-btn active" id="modeVoice" onclick="setMode('voice')">🎙️ Speak (Live Voice)</button>
+      <button class="mode-btn"        id="modeText"  onclick="setMode('text')">📝 Text</button>
+      <button class="mode-btn"        id="modeDemo"  onclick="setMode('demo')">🧪 Demo</button>
+    </div>
+
+    <!-- ── MODE: VOICE (DIRECT SPEAKING) ───────────────────── -->
+    <div id="modeVoiceContent" class="mode-content active">
+      
+      <!-- Language Picker -->
+      <div class="field-group">
+        <label class="field-label">Speaking Language</label>
+        <select id="voiceLang" class="select" onchange="onVoiceLangChange()">
+          <option value="hi">🇮🇳 Hindi (हिन्दी)</option>
+          <option value="en">🌐 English (Indian)</option>
+          <option value="mr">🇮🇳 Marathi (मराठी)</option>
+          <option value="ta">🇮🇳 Tamil (தமிழ்)</option>
+          <option value="te">🇮🇳 Telugu (తెలుగు)</option>
+          <option value="bn">🇮🇳 Bengali (বাংলা)</option>
+          <option value="kn">🇮🇳 Kannada (ಕನ್ನಡ)</option>
+          <option value="gu">🇮🇳 Gujarati (ગુજરાતી)</option>
+          <option value="pa">🇮🇳 Punjabi (ਪੰਜਾਬੀ)</option>
+        </select>
+      </div>
+
+      <!-- Live Voice Studio Hero -->
+      <div class="voice-studio">
+        
+        <!-- Big Interactive Record Button -->
+        <div class="mic-button-wrapper">
+          <button class="mic-btn" id="micBtn" onclick="toggleVoiceRecording()" title="Click to start speaking">
+            <span class="mic-icon" id="micIcon">🎙️</span>
+            <div class="mic-pulse-ring" id="micPulseRing"></div>
+          </button>
+        </div>
+
+        <div class="voice-status-text" id="voiceStatus">Click the microphone to start speaking</div>
+        <div class="voice-timer" id="voiceTimer">00:00</div>
+
+        <!-- Real-time Audio Waveform Canvas -->
+        <div class="waveform-box">
+          <canvas id="waveformCanvas" width="320" height="48"></canvas>
+        </div>
+
+        <!-- Live Spoken Words Bubble -->
+        <div class="live-transcript-wrap">
+          <div class="lt-header">
+            <span>🗣️ Live Spoken Symptoms:</span>
+            <span class="lt-clear" onclick="clearVoiceTranscript()">Clear</span>
+          </div>
+          <div class="live-transcript" id="liveTranscript">
+            <span class="lt-placeholder">Click microphone above and speak your symptoms. Your words will appear here live...</span>
+          </div>
+        </div>
+
+        <!-- Voice Action Buttons -->
+        <div class="voice-actions">
+          <button class="btn-run btn-voice-triage" id="voiceTriageBtn" onclick="submitVoiceTriage()" disabled>
+            ⏹️ Stop & Triage Patient
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Speaking Prompts -->
+      <div class="speaking-prompts">
+        <div class="chips-label">Quick Voice Practice (Click to load & speak):</div>
+        <div class="chips-row">
+          <button class="chip chip-red"    onclick="speakPrompt('chest')">🔴 Chest Pain & Sweating</button>
+          <button class="chip chip-red"    onclick="speakPrompt('stroke')">🔴 Face Droop & Slurred Speech</button>
+          <button class="chip chip-yellow" onclick="speakPrompt('fever')">🟡 High Fever & Rash</button>
+          <button class="chip chip-green"  onclick="speakPrompt('cold')">🟢 Mild Cold & Sore Throat</button>
+        </div>
+      </div>
+
+      <div class="voice-hint">
+        💡 <strong>Direct Microphone:</strong> Speak naturally in Hindi, English, or your regional language. Real-time Voice Activity Detection and Whisper STT will extract symptoms directly.
+      </div>
+    </div>
+
+    <!-- ── MODE: TEXT ─────────────────────────────────────── -->
+    <div id="modeTextContent" class="mode-content">
+      <div class="field-group">
+        <label class="field-label">Patient Description</label>
+        <textarea id="txtInput" class="textarea" rows="8"
+          placeholder="Type patient's symptoms here…&#10;&#10;Examples:&#10;• Mujhe seene mein dard ho raha hai…&#10;• My chest hurts and I can't breathe…&#10;• Enakku chest pain irukku…"></textarea>
+        <div class="char-count"><span id="charCount">0</span> chars</div>
+      </div>
+      <div class="field-row">
+        <div class="field-group flex1">
+          <label class="field-label">Language</label>
+          <select id="txtLang" class="select">
+            <option value="hi">🇮🇳 Hindi</option>
+            <option value="mr">🇮🇳 Marathi</option>
+            <option value="ta">🇮🇳 Tamil</option>
+            <option value="te">🇮🇳 Telugu</option>
+            <option value="kn">🇮🇳 Kannada</option>
+            <option value="bn">🇮🇳 Bengali</option>
+            <option value="gu">🇮🇳 Gujarati</option>
+            <option value="pa">🇮🇳 Punjabi</option>
+            <option value="en">🌐 English</option>
+          </select>
+        </div>
+        <button class="btn-run" id="txtRunBtn" onclick="runTextTriage()">
+          Run Triage ▶
+        </button>
+      </div>
+      <!-- Quick sample chips -->
+      <div class="chips-row">
+        <span class="chips-label">Try:</span>
+        <button class="chip chip-red"    onclick="useSample('emergency')">🔴 Chest Pain</button>
+        <button class="chip chip-red"    onclick="useSample('stroke')">🔴 Stroke</button>
+        <button class="chip chip-yellow" onclick="useSample('tb')">🟡 TB Signs</button>
+        <button class="chip chip-green"  onclick="useSample('cold')">🟢 Common Cold</button>
+        <button class="chip chip-yellow" onclick="useSample('suicide')">🟡 Mental Crisis</button>
+      </div>
+    </div>
+
+    <!-- ── MODE: DEMO ─────────────────────────────────────── -->
+    <div id="modeDemoContent" class="mode-content">
+      <div class="demo-search">
+        <input type="text" id="demoSearch" class="search-input"
+               placeholder="Filter cases…" oninput="filterCases(this.value)"/>
+      </div>
+      <div class="demo-filters">
+        <button class="filter-btn active" onclick="filterByUrgency('ALL',this)">All</button>
+        <button class="filter-btn" onclick="filterByUrgency('EMERGENCY',this)">🔴 Emergency</button>
+        <button class="filter-btn" onclick="filterByUrgency('URGENT',this)">🟡 Urgent</button>
+        <button class="filter-btn" onclick="filterByUrgency('ROUTINE',this)">🟢 Routine</button>
+      </div>
+      <div id="casesList" class="cases-list">
+        <div class="loading-row">Loading cases…</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── RIGHT: Output Panel ───────────────────────────────────────────── -->
+  <main class="card output-card" id="outputCard">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🏥</div>
+      <div class="empty-title">Ready for Triage</div>
+      <div class="empty-sub">Enter a patient description or select a demo case to begin.</div>
+      <div class="empty-steps">
+        <div class="estep"><span class="estep-num">1</span> Enter patient description</div>
+        <div class="estep"><span class="estep-num">2</span> Click <strong>Run Triage</strong></div>
+        <div class="estep"><span class="estep-num">3</span> AI analyses all 4 stages</div>
+        <div class="estep"><span class="estep-num">4</span> See urgency + specialist</div>
+      </div>
+    </div>
+
+    <!-- Result (hidden until ready) -->
+    <div class="result-wrap hidden" id="resultWrap">
+
+      <!-- Urgency Banner -->
+      <div class="urgency-banner" id="urgencyBanner">
+        <div class="ub-left">
+          <div class="ub-icon" id="ubIcon">🟢</div>
+          <div>
+            <div class="ub-urgency" id="ubUrgency">ROUTINE</div>
+            <div class="ub-specialty" id="ubSpecialty">General Medicine</div>
+          </div>
+        </div>
+        <div class="ub-right">
+          <div class="ub-conf" id="ubConf">–%</div>
+          <div class="ub-conf-label">Confidence</div>
+        </div>
+        <div class="ub-action">
+          <button class="copy-btn" onclick="copyResult()" title="Copy result as JSON">📋</button>
+          <button class="copy-btn" onclick="downloadResult()" title="Download JSON">⬇️</button>
+        </div>
+      </div>
+
+      <!-- Stage Pipeline Indicator -->
+      <div class="pipeline-steps">
+        <div class="pstep done" id="ps1"><span class="pstep-num">1</span> Speech</div>
+        <div class="pstep-arrow">→</div>
+        <div class="pstep done" id="ps2"><span class="pstep-num">2</span> NLP</div>
+        <div class="pstep-arrow">→</div>
+        <div class="pstep done" id="ps3"><span class="pstep-num">3</span> RAG</div>
+        <div class="pstep-arrow">→</div>
+        <div class="pstep done" id="ps4"><span class="pstep-num">4</span> Decision</div>
+      </div>
+
+      <!-- Two-column details -->
+      <div class="detail-grid">
+
+        <!-- Transcript -->
+        <div class="detail-card span2">
+          <div class="dc-header">
+            <span>📄 Transcript</span>
+            <span class="dc-badges">
+              <span class="badge" id="langBadge">–</span>
+              <span class="badge badge-blue" id="modelBadge">–</span>
+            </span>
+          </div>
+          <div class="dc-body transcript-box" id="transcriptBox">–</div>
+        </div>
+
+        <!-- Symptoms -->
+        <div class="detail-card">
+          <div class="dc-header">🔬 Symptoms</div>
+          <div class="dc-body" id="symptomsBox">–</div>
+        </div>
+
+        <!-- Patient Info -->
+        <div class="detail-card">
+          <div class="dc-header">👤 Patient Info</div>
+          <div class="dc-body">
+            <div class="kv"><span class="kv-key">Duration</span><span id="durVal">–</span></div>
+            <div class="kv"><span class="kv-key">Severity</span><span id="sevVal">–</span></div>
+            <div class="kv"><span class="kv-key">Age</span><span id="ageVal">–</span></div>
+            <div class="kv"><span class="kv-key">Gender</span><span id="genVal">–</span></div>
+            <div class="kv"><span class="kv-key">Existing</span><span id="disVal">–</span></div>
+          </div>
+        </div>
+
+        <!-- Red Flags -->
+        <div class="detail-card" id="rfCard">
+          <div class="dc-header">🚩 Red Flags</div>
+          <div class="dc-body" id="rfBox">None triggered</div>
+        </div>
+
+        <!-- Rules Matched -->
+        <div class="detail-card">
+          <div class="dc-header">📋 Rules Matched</div>
+          <div class="dc-body" id="rulesBox">–</div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="detail-card span2 reason-card">
+          <div class="dc-header">💡 Reason / Explanation</div>
+          <div class="dc-body reason-box" id="reasonBox">–</div>
+        </div>
+
+        <!-- Performance -->
+        <div class="detail-card span2">
+          <div class="dc-header">⚡ Pipeline Performance</div>
+          <div class="dc-body perf-row">
+            <div class="perf-item"><div class="pv" id="perfTotal">–</div><div class="pk">Total</div></div>
+            <div class="perf-item"><div class="pv" id="perfSTT">–</div><div class="pk">STT</div></div>
+            <div class="perf-item"><div class="pv" id="perfLLM">–</div><div class="pk">LLM</div></div>
+            <div class="perf-item"><div class="pv" id="perfDec">–</div><div class="pk">Decision</div></div>
+            <div class="perf-item"><div class="pv" id="perfRAG">–</div><div class="pk">RAG Rules</div></div>
+            <div class="perf-item"><div class="pv" id="perfCase">–</div><div class="pk">Case ID</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div class="error-state hidden" id="errorState">
+      <div class="err-icon">⚠️</div>
+      <div class="err-msg" id="errMsg">Something went wrong.</div>
+      <button class="btn-run" style="margin-top:1rem" onclick="hideError()">Dismiss</button>
+    </div>
+  </main>
+</div>
+
+<!-- ══ HISTORY DRAWER ═════════════════════════════════════════════════════ -->
+<div class="drawer-overlay hidden" id="historyOverlay" onclick="closeDrawer('history')"></div>
+<aside class="drawer" id="historyDrawer">
+  <div class="drawer-header">
+    <h2>🕒 Triage History</h2>
+    <button class="icon-btn" onclick="closeDrawer('history')">✕</button>
+  </div>
+  <div class="drawer-search">
+    <input type="text" class="search-input" placeholder="Search history…" oninput="filterHistory(this.value)"/>
+  </div>
+  <div id="historyList" class="drawer-list">Loading…</div>
+</aside>
+
+<!-- ══ STATS DRAWER ═══════════════════════════════════════════════════════ -->
+<div class="drawer-overlay hidden" id="statsOverlay" onclick="closeDrawer('stats')"></div>
+<aside class="drawer drawer-right" id="statsDrawer">
+  <div class="drawer-header">
+    <h2>📊 Statistics</h2>
+    <button class="icon-btn" onclick="closeDrawer('stats')">✕</button>
+  </div>
+  <div id="statsContent" class="stats-wrap">Loading…</div>
+</aside>
+
+<!-- ══ HELP MODAL ═════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="helpOverlay">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h2>How to Use VoiceTriage</h2>
+      <button class="icon-btn" onclick="closeHelp()">✕</button>
+    </div>
+    <div class="modal-body help-body">
+      <div class="help-step"><div class="hs-num">1</div><div class="hs-text"><strong>Choose Input Mode</strong><br/>Switch between <em>Text</em> (type/paste), <em>Audio</em> (upload WAV/MP3), or <em>Demo</em> (pre-built synthetic cases).</div></div>
+      <div class="help-step"><div class="hs-num">2</div><div class="hs-text"><strong>Provide Patient Description</strong><br/>Type the patient's complaint in any Indian language or English. Use quick sample chips to try preset cases.</div></div>
+      <div class="help-step"><div class="hs-num">3</div><div class="hs-text"><strong>Select Language</strong><br/>Choose the language of the input so the system can correctly process regional terms.</div></div>
+      <div class="help-step"><div class="hs-num">4</div><div class="hs-text"><strong>Click Run Triage</strong><br/>The AI runs all 4 pipeline stages: Speech → NLP → RAG → Decision. Takes ~2–8 seconds.</div></div>
+      <div class="help-step"><div class="hs-num">5</div><div class="hs-text"><strong>Read the Result</strong><br/>The dashboard shows urgency level (🔴 Emergency / 🟡 Urgent / 🟢 Routine), specialist, confidence score, extracted symptoms, and a plain-language reason.</div></div>
+      <div class="help-step"><div class="hs-num">6</div><div class="hs-text"><strong>Use the Decision</strong><br/>Hand the result to the call-centre operator. <em>The AI assists — the doctor always makes the final call.</em></div></div>
+      <div class="help-step"><div class="hs-num">7</div><div class="hs-text"><strong>View History & Stats</strong><br/>Click History to see all previous triages. Click Stats for urgency distribution and confidence metrics.</div></div>
+      <div class="info-box" style="margin-top:1rem">⚕️ <strong>Scope:</strong> This tool is for pre-call triage routing only. It does <em>not</em> diagnose or prescribe treatment.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GLOBAL LOADING OVERLAY ════════════════════════════════════════════ -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="loading-title" id="loadingTitle">Running Pipeline…</div>
+    <div class="stages-track">
+      <div class="stage-row" id="sr1"><span class="stage-dot idle"></span> Stage 1 — Speech Processing</div>
+      <div class="stage-row" id="sr2"><span class="stage-dot idle"></span> Stage 2 — NLP Extraction</div>
+      <div class="stage-row" id="sr3"><span class="stage-dot idle"></span> Stage 3 — RAG Knowledge</div>
+      <div class="stage-row" id="sr4"><span class="stage-dot idle"></span> Stage 4 — Decision Engine</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════════════════════ -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
